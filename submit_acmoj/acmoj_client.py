@@ -136,17 +136,32 @@ def main():
     client = ACMOJClient(args.token)
 
     if args.command == "submit":
-        try:
-            with open(args.code_file, 'r', encoding='utf-8') as f:
-                code_text = f.read()
-        except FileNotFoundError:
-            print(f"Error: Code file not found at {args.code_file}")
-            exit(1)
-        except Exception as e:
-            print(f"Error: Failed to read code file: {e}")
-            exit(1)
-
-        result = client.submit_code(args.problem_id, args.language, code_text)
+        if args.language.lower() == 'git':
+            git_url = None
+            if args.code_file and (args.code_file.startswith('http://') or args.code_file.startswith('https://') or args.code_file.startswith('git@')):
+                git_url = args.code_file
+            else:
+                try:
+                    import subprocess
+                    git_url = subprocess.check_output(['git', 'config', '--get', 'remote.origin.url'], text=True).strip()
+                except Exception as e:
+                    print(f"Error: Failed to detect git remote URL: {e}")
+                    exit(1)
+            if not git_url:
+                print("Error: Git URL not provided or detected.")
+                exit(1)
+            result = client.submit_git(args.problem_id, git_url)
+        else:
+            try:
+                with open(args.code_file, 'r', encoding='utf-8') as f:
+                    code_text = f.read()
+            except FileNotFoundError:
+                print(f"Error: Code file not found at {args.code_file}")
+                exit(1)
+            except Exception as e:
+                print(f"Error: Failed to read code file: {e}")
+                exit(1)
+            result = client.submit_code(args.problem_id, args.language, code_text)
 
     elif args.command == "status":
         result = client.get_submission_detail(args.submission_id)
